@@ -319,57 +319,26 @@ taxanyway:
                         'Personal User
 
                         Select Case User(T).Income + User(T).EI
-                            Case > 5000000000
-                                taxb = 0.3
-                                If UseNUTAC = False Then taxb = 0.05
-                                Exit Select
-                            Case > 1000000000
-                                taxb = 0.25
-                                If UseNUTAC = False Then taxb = 0.05
-                                Exit Select
-                            Case > 500000000
-                                taxb = 0.2
-                                If UseNUTAC = False Then taxb = 0.05
-                                Exit Select
-                            Case > 100000000
-                                taxb = 0.15
-                                If UseNUTAC = False Then taxb = 0.05
-                                Exit Select
-                            Case > 10000000
-                                taxb = 0.1
-                                If UseNUTAC = False Then taxb = 0.05
-                                Exit Select
                             Case > 1000000
-                                taxb = 0.05
-                                Exit Select
-                            Case > 100000
-                                taxb = 0.03
-                                Exit Select
+                                taxb = 0.07
                             Case Else
-                                taxb = 0.01
+                                taxb = 0
                                 Exit Select
                         End Select
                         Tax = (User(T).Income + User(T).EI) * taxb
                     Case 1
 
-                        If User(T).Income + User(T).EI < 15000000 Then
-                            taxb = 0
-                            Tax = 0
-                        Else
-                            Select Case User(T).Income + User(T).EI
 
-                                Case > 500000000
-                                    taxb = 0.15
-                                    Exit Select
-                                Case > 100000000
-                                    taxb = 0.1
+                        Select Case User(T).Income + User(T).EI
+
+                            Case > 5000000
+                                taxb = 0.03
                                     Exit Select
                                 Case Else
-                                    taxb = 0.05
+                                    taxb = 0
                                     Exit Select
                             End Select
-                            Tax = (User(T).Income + User(T).EI - 15000000) * taxb
-                        End If
+                            Tax = (User(T).Income + User(T).EI) * taxb
 
                         'old code
 
