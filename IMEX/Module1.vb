@@ -319,8 +319,8 @@ taxanyway:
                         'Personal User
 
                         Select Case User(T).Income + User(T).EI
-                            Case > 1000000
-                                taxb = 0.07
+                            Case > 5000000
+                                taxb = 0.05
                             Case Else
                                 taxb = 0
                                 Exit Select
