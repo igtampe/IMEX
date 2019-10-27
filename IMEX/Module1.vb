@@ -331,9 +331,9 @@ taxanyway:
 
                         Select Case User(T).Income + User(T).EI
 
-                            Case > 5000000
-                                taxb = 0.03
-                                    Exit Select
+                            Case > 500000000
+                                taxb = 0.02
+                                Exit Select
                                 Case Else
                                     taxb = 0
                                     Exit Select
