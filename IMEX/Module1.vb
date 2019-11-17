@@ -7,6 +7,45 @@ Module Module1
         Public Income As Long
         Public EI As Long
         Public Category As Integer
+
+        Public Function TopBank() As String
+            If HasBank("UMSNB") Then Return "UMSNB"
+            If HasBank("GBANK") Then Return "GBANK"
+            If HasBank("RIVER") Then Return "RIVER"
+            Return "NOBANK"
+        End Function
+
+        Public Function TaxBank() As String
+            Dim TopBank As String = "NOBANK"
+            Try
+                If GetBankBalance(TopBank) < GetBankBalance("UMSNB") Then TopBank = "UMSNB"
+                If GetBankBalance(TopBank) < GetBankBalance("GBANK") Then TopBank = "GBANK"
+                If GetBankBalance(TopBank) < GetBankBalance("RIVER") Then TopBank = "RIVER"
+                Return TopBank
+            Catch ex As Exception
+                Return TopBank
+            End Try
+        End Function
+
+        Public Function HasBank(Bank As String) As Boolean
+            Return Directory.Exists("..\USERS\" & ID & "\" & Bank)
+        End Function
+
+        Public Function GetBankBalance(Bank As String) As Long
+            If Bank = "NOBANK" Then Return 0
+            If Not HasBank(Bank) Then Return 0
+
+            Try
+                FileOpen(4, "..\USERS\" & ID & "\" & Bank & "\BALANCE.DLL", OpenMode.Input)
+                Dim Balance As Long = LineInput(4)
+                FileClose(4)
+                Return Balance
+            Catch ex As Exception
+                Return 0
+            End Try
+
+        End Function
+
     End Structure
 
     Public User() As UserStructure
@@ -192,50 +231,50 @@ Module Module1
     End Sub
 
     Sub LoadUsers(Optional nocorporate As Boolean = False)
+
         Try
             FileSystem.FileOpen(1, String.Concat("UserList.isf"), OpenMode.Input, OpenAccess.[Default], OpenShare.[Default], -1)
         Catch
             ErrorScreen(0)
             Exit Sub
         End Try
-        'The counter
-        Dim num8 As Integer = 1
-        'The string holder
-        Dim Str14 As String
-        While Not FileSystem.EOF(1)
-            Str14 = FileSystem.LineInput(1)
-            If (Str14.StartsWith("USER")) Then
-                ReDim Preserve User(num8 - 1)
+
+        Dim Counter As Integer = 1
+        Dim TempStringHolder As String
+
+        While Not EOF(1)
+            TempStringHolder = LineInput(1)
+            If (TempStringHolder.StartsWith("USER")) Then
+                ReDim Preserve User(Counter - 1)
                 'Grab the USER ID
-                User(num8 - 1).ID = Str14.Replace("USER" & num8 & ":", "")
+                User(Counter - 1).ID = TempStringHolder.Replace("USER" & Counter & ":", "")
 
                 'GRAB THE INCOME
                 Try
-                    FileOpen(2, "..\USERS\" & User(num8 - 1).ID & "\INCOME.dll", OpenMode.Input)
-                    User(num8 - 1).Income = LineInput(2)
+                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\INCOME.dll", OpenMode.Input)
+                    User(Counter - 1).Income = LineInput(2)
                     FileClose(2)
                 Catch
-                    User(num8 - 1).Income = 0
+                    User(Counter - 1).Income = 0
                 End Try
 
                 Try
-                    FileOpen(2, "..\USERS\" & User(num8 - 1).ID & "\EI.dll", OpenMode.Input)
-                    User(num8 - 1).EI = LineInput(2)
+                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\EI.dll", OpenMode.Input)
+                    User(Counter - 1).EI = LineInput(2)
                     FileClose(2)
-                    File.Delete("..\USERS\" & User(num8 - 1).ID & "\EI.dll")
+                    File.Delete("..\USERS\" & User(Counter - 1).ID & "\EI.dll")
                 Catch
-                    User(num8 - 1).EI = 0
+                    User(Counter - 1).EI = 0
                 End Try
 
-                User(num8 - 1).Category = 0
+                User(Counter - 1).Category = 0
 
                 'LOG IT
-                ToLog("Loaded user " & num8 & " which is " & User(num8 - 1).ID & " and has an income of " & User(num8 - 1).Income.ToString("N0") & "p")
+                ToLog("Loaded user " & Counter & " which is " & User(Counter - 1).ID & " and has an income of " & User(Counter - 1).Income.ToString("N0") & "p")
 
                 'S P I N
                 Spinner()
-                num8 = num8 + 1
-
+                Counter = Counter + 1
 
             End If
         End While
@@ -245,44 +284,44 @@ Module Module1
 
 
         Try
-            FileSystem.FileOpen(1, String.Concat("Corporate.isf"), OpenMode.Input, OpenAccess.[Default], OpenShare.[Default], -1)
+            FileOpen(1, String.Concat("Corporate.isf"), OpenMode.Input, OpenAccess.[Default], OpenShare.[Default], -1)
         Catch
             Exit Sub
         End Try
         Dim CorporateCounter = 1
-        While Not FileSystem.EOF(1)
-            Str14 = FileSystem.LineInput(1)
-            If (Str14.StartsWith("USER")) Then
-                ReDim Preserve User(num8 - 1)
+        While Not EOF(1)
+            TempStringHolder = LineInput(1)
+            If (TempStringHolder.StartsWith("USER")) Then
+                ReDim Preserve User(Counter - 1)
                 'Grab the USER ID
-                User(num8 - 1).ID = Str14.Replace("USER" & CorporateCounter & ":", "")
+                User(Counter - 1).ID = TempStringHolder.Replace("USER" & CorporateCounter & ":", "")
 
                 'GRAB THE INCOME
                 Try
-                    FileOpen(2, "..\USERS\" & User(num8 - 1).ID & "\INCOME.dll", OpenMode.Input)
-                    User(num8 - 1).Income = LineInput(2)
+                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\INCOME.dll", OpenMode.Input)
+                    User(Counter - 1).Income = LineInput(2)
                     FileClose(2)
                 Catch
-                    User(num8 - 1).Income = 0
+                    User(Counter - 1).Income = 0
                 End Try
 
                 Try
-                    FileOpen(2, "..\USERS\" & User(num8 - 1).ID & "\EI.dll", OpenMode.Input)
-                    User(num8 - 1).EI = LineInput(2)
+                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\EI.dll", OpenMode.Input)
+                    User(Counter - 1).EI = LineInput(2)
                     FileClose(2)
-                    File.Delete("..\USERS\" & User(num8 - 1).ID & "\EI.dll")
+                    File.Delete("..\USERS\" & User(Counter - 1).ID & "\EI.dll")
                 Catch
-                    User(num8 - 1).EI = 0
+                    User(Counter - 1).EI = 0
                 End Try
 
-                User(num8 - 1).Category = 1
+                User(Counter - 1).Category = 1
 
                 'LOG IT
-                ToLog("Loaded Corporate user " & num8 & " which is " & User(num8 - 1).ID & " and has an income of " & User(num8 - 1).Income.ToString("N0") & "p")
+                ToLog("Loaded Corporate user " & Counter & " which is " & User(Counter - 1).ID & " and has an income of " & User(Counter - 1).Income.ToString("N0") & "p")
 
                 'S P I N
                 Spinner()
-                num8 = num8 + 1
+                Counter = Counter + 1
                 CorporateCounter = CorporateCounter + 1
 
 
@@ -340,39 +379,12 @@ taxanyway:
                             End Select
                             Tax = (User(T).Income + User(T).EI) * taxb
 
-                        'old code
-
-                        'Select Case User(T).Income + User(T).EI
-
-                        '                    Case > 1000000
-                        '                       Tax = (User(T).Income + User(T).EI) * 0.05
-                        '                      taxb = 0.05
-                        '                     Exit Select
-                        '                Case > 100000
-                        '                   Tax = (User(T).Income + User(T).EI) * 0.03
-                        '                  taxb = 0.03
-                        '                 Exit Select
-                        '            Case Else
-                        '               Tax = (User(T).Income + User(T).EI) * 0.01
-                        '              taxb = 0.01
-                        '             Exit Select
-                        '    End Select
-
-
                 End Select
 
 
+                topbank = User(T).TaxBank
+                If topbank = "NOBANK" Then GoTo NoBankNoTax
 
-                If Directory.Exists("..\USERS\" & User(T).ID & "\UMSNB") Then
-                    topbank = "UMSNB"
-                ElseIf Directory.Exists("..\USERS\" & User(T).ID & "\GBANK") Then
-                    topbank = "GBANK"
-                ElseIf Directory.Exists("..\USERS\" & User(T).ID & "\RIVER") Then
-                    topbank = "RIVER"
-                Else
-                    topbank = "NOBANK"
-                    GoTo NoBankNoTax
-                End If
                 topbankB = 0
 
                 FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\BALANCE.DLL", OpenMode.Input)
@@ -427,6 +439,8 @@ NoBankNoTax:
 
     End Sub
 
+
+
     Sub Payday(FORCE As Boolean)
         Console.SetCursorPosition(0, 14)
         Console.WriteLine("Paying all users...")
@@ -448,16 +462,9 @@ payanyway:
 
             For T = 0 To User.Count - 1
 
-                If Directory.Exists("..\USERS\" & User(T).ID & "\UMSNB") Then
-                    topbank = "UMSNB"
-                ElseIf Directory.Exists("..\USERS\" & User(T).ID & "\GBANK") Then
-                    topbank = "GBANK"
-                ElseIf Directory.Exists("..\USERS\" & User(T).ID & "\RIVER") Then
-                    topbank = "RIVER"
-                Else
-                    topbank = "NOBANK"
-                    GoTo NoBankNoTax
-                End If
+                topbank = User(T).TopBank
+                If topbank = "NOBANK" Then GoTo NoBankNoTax
+
                 topbankB = 0
 
                 FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\BALANCE.DLL", OpenMode.Input)
