@@ -1,18 +1,29 @@
 ﻿Imports System.IO
+Imports IMEX.TaxCalc
+Imports IMEX.BasicRender
 
 Module Module1
 
-    Public Structure UserStructure
+    Public Structure User
         Public ID As String
+        Public Category As Integer
+        Public TaxInfo As TaxInformation
         Public Income As Long
         Public EI As Long
-        Public Category As Integer
+
 
         Public Function TopBank() As String
             If HasBank("UMSNB") Then Return "UMSNB"
             If HasBank("GBANK") Then Return "GBANK"
             If HasBank("RIVER") Then Return "RIVER"
-            Return "NOBANK"
+            Throw NoBankException
+        End Function
+
+        Private Function TopBank(ID As String) As String
+            If HasBank("UMSNB") Then Return "UMSNB"
+            If HasBank("GBANK") Then Return "GBANK"
+            If HasBank("RIVER") Then Return "RIVER"
+            Throw NoBankException
         End Function
 
         Public Function TaxBank() As String
@@ -46,19 +57,108 @@ Module Module1
 
         End Function
 
+        Public Sub New(ID As String, Category As Long)
+            Me.ID = ID
+            Me.Category = Category
+
+            Dim NewpondIncome As Long
+            Dim UrbiaIncome As Long
+            Dim ParadisusIncome As Long
+            Dim LaertesIncome As Long
+            Dim NOstenIncome As Long
+            Dim SOstenIncome As Long
+
+
+            'GRAB THE INCOME
+            Try
+                FileOpen(2, "..\USERS\" & ID & "\BREAKDOWN.dll", OpenMode.Input)
+                Dim TempBreakdown() As String = LineInput(2).Split(",")
+                FileClose(2)
+                NewpondIncome = TempBreakdown(0)
+                UrbiaIncome = TempBreakdown(1)
+                ParadisusIncome = TempBreakdown(2)
+                LaertesIncome = TempBreakdown(3)
+                NOstenIncome = TempBreakdown(4)
+                SOstenIncome = TempBreakdown(5)
+            Catch
+                NewpondIncome = 0
+                UrbiaIncome = 0
+                ParadisusIncome = 0
+                LaertesIncome = 0
+                NOstenIncome = 0
+                SOstenIncome = 0
+            End Try
+
+            Try
+                FileOpen(2, "..\USERS\" & ID & "\EI.dll", OpenMode.Input)
+                EI = LineInput(2)
+                FileClose(2)
+            Catch
+                EI = 0
+            End Try
+
+            TaxInfo = New TaxInformation(EI, NewpondIncome, UrbiaIncome, ParadisusIncome, LaertesIncome, NOstenIncome, SOstenIncome, Category)
+            Income = TaxInfo.FederalIncome - EI
+        End Sub
+
+        Public Sub ClearEI()
+            File.Delete("..\USERS\" & ID & "\EI.dll")
+        End Sub
+
+        Public Sub Pay()
+
+            'PAY
+            NTA(ID, Income)
+
+            'Send to Logs
+            FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\log.log", OpenMode.Append)
+            PrintLine(4, "[" & DateTime.Now.ToString & "] IMEX has applied your monthly income of " & Income.ToString("N0") & "p")
+            FileClose(4)
+
+        End Sub
+
+        Public Sub Tax()
+
+            'Take the money out
+            NTA(ID, -1 * TaxInfo.TotalTax)
+
+            'Send Taxes to appropriate accounts
+            NTA("33118", TaxInfo.Federal.MoneyOwed)
+            NTA("86700", TaxInfo.Newpond.MoneyOwed)
+            NTA("86701", TaxInfo.Paradisus.MoneyOwed)
+            NTA("86702", TaxInfo.Urbia.MoneyOwed)
+            NTA("86703", TaxInfo.Laertes.MoneyOwed)
+            NTA("86704", TaxInfo.NorthOsten.MoneyOwed)
+            NTA("86705", TaxInfo.SouthOsten.MoneyOwed)
+
+            'Send to Logs
+            FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\log.log", OpenMode.Append)
+            PrintLine(4, "[" & DateTime.Now.ToString & "] IMEX applied a tax of " & TaxInfo.TotalTax.ToString("N0") & "p to your account.")
+            PrintLine(4, "[" & DateTime.Now.ToString & "] Your total income (monthly and extra) last month was " & (TaxInfo.FederalIncome).ToString("N0") & "p")
+            FileClose(4)
+
+            'Clear the EI file
+            ClearEI()
+
+        End Sub
+
+        Private Sub NTA(ntaID As String, Amount As Long)
+            Dim Balance As Long = GetBankBalance(TopBank()) + Amount
+            FileOpen(4, "..\USERS\" & ntaID & "\" & TopBank() & "\BALANCE.DLL", OpenMode.Output)
+            WriteLine(4, Balance)
+            FileClose(4)
+        End Sub
+
     End Structure
 
-    Public User() As UserStructure
-
+    Public NoBankException As Exception = New Exception("The User has no bank")
 
     Sub Main()
-
-
 
         Dim Arguements As String()
         Arguements = Environment.GetCommandLineArgs
 
-        Console.WriteLine("Please Wait, Loading IMEX")
+        Echo("Please Wait, Loading IMEX", True)
 
         Console.Clear()
 
@@ -66,24 +166,25 @@ Module Module1
         Console.Title = "IncomeMan Express"
         Console.SetWindowSize(50, 25)
         Console.SetBufferSize(50, 25)
-        Console.ForegroundColor = ConsoleColor.DarkCyan
+        Color(ConsoleColor.Black, ConsoleColor.DarkCyan)
 
 
-        Console.WriteLine("")
-        Console.WriteLine("      /$$$$$$ /$$      /$$ /$$$$$$$$ /$$   /$$")
-        Console.WriteLine("     |_  $$_/| $$$    /$$$| $$_____/| $$  / $$")
-        Console.WriteLine("       | $$  | $$$$  /$$$$| $$      |  $$/ $$/")
-        Console.WriteLine("       | $$  | $$ $$/$$ $$| $$$$$    \  $$$$/ ")
-        Console.WriteLine("       | $$  | $$  $$$| $$| $$__/     >$$  $$ ")
-        Console.WriteLine("       | $$  | $$\  $ | $$| $$       /$$/\  $$")
-        Console.WriteLine("      /$$$$$$| $$ \/  | $$| $$$$$$$$| $$  \ $$")
-        Console.WriteLine("     |______/|__/     |__/|________/|__/  |__/")
-        Console.WriteLine("")
-        Console.WriteLine("═════════════════════════════════════════════════")
-        Console.WriteLine("                 IncomeMan EXPRESS")
-        Console.WriteLine("═════════════════════════════════════════════════")
-        Console.WriteLine("")
+        Echo(".")
+        Echo("      /$$$$$$ /$$      /$$ /$$$$$$$$ /$$   /$$", True)
+        Echo("     |_  $$_/| $$$    /$$$| $$_____/| $$  / $$", True)
+        Echo("       | $$  | $$$$  /$$$$| $$      |  $$/ $$/", True)
+        Echo("       | $$  | $$ $$/$$ $$| $$$$$    \  $$$$/ ", True)
+        Echo("       | $$  | $$  $$$| $$| $$__/     >$$  $$ ", True)
+        Echo("       | $$  | $$\  $ | $$| $$       /$$/\  $$", True)
+        Echo("      /$$$$$$| $$ \/  | $$| $$$$$$$$| $$  \ $$", True)
+        Echo("     |______/|__/     |__/|________/|__/  |__/", True)
+        Echo(".")
+        Echo("═════════════════════════════════════════════════", True)
+        Echo("                 IncomeMan EXPRESS", True)
+        Echo("═════════════════════════════════════════════════", True)
+        Echo(".")
 
+        Dim Force As Boolean
 
         Select Case Arguements.Count
 
@@ -93,112 +194,61 @@ Module Module1
             '║ ║ ║
             '╚═╩═╝
             Case 1
-                Console.WriteLine("IMEX {/TAX or /INCOME} {/IGNORE}")
-                Console.WriteLine("")
-                Console.WriteLine("/TAX   : Tax all users in the UserList.ISF File")
-                Console.WriteLine("/INCOME: Give income to all users in the registry")
-                Console.WriteLine("")
-                Console.WriteLine("/IGNORE: Ignore the date restrictions on actions")
-                Console.WriteLine("")
-                Console.WriteLine("═════════════════════════════════════════════════")
-                Console.WriteLine("(C)2019 Igtampe, No Rights Reserved.")
-                Console.ReadKey(True)
-
+                HelpScreen()
+                Return
             Case 2
-
-                Console.WriteLine("Please wait..")
-                Console.WriteLine("")
-                Console.WriteLine("╔═══════════════════════════════════════════════╗")
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("╚═══════════════════════════════════════════════╝")
-                Console.WriteLine("")
-                Console.WriteLine("                  Loading Users                  ")
-                Console.SetCursorPosition(24, 21)
-                Console.WriteLine("|")
-                Console.WriteLine("")
-
-                LoadUsers()
-
-                Select Case Arguements(1).ToUpper
-                    Case "/TAX"
-                        Tax(False)
-
-                    Case "/INCOME"
-                        Payday(False)
-
-                End Select
-
+                If Not Arguements(1).ToUpper = "/TAX" Or Arguements(1).ToUpper = "/INCOME" Then
+                    HelpScreen()
+                    Return
+                End If
+                DrawLoadBar()
             Case 3
-
-                Select Case Arguements(2).ToUpper
-                    Case "/FORCE"
-                        Console.WriteLine("Please wait..")
-                        Console.WriteLine("")
-                        Console.WriteLine("╔═══════════════════════════════════════════════╗")
-                        Console.WriteLine("║                                               ║")
-                        Console.WriteLine("╚═══════════════════════════════════════════════╝")
-                        Console.WriteLine("")
-                        Console.WriteLine("                  Loading Users                  ")
-                        Console.WriteLine("")
-                        Console.WriteLine("               !!FORCE IS ENABLED!!              ")
-                        Console.SetCursorPosition(24, 21)
-                        Console.WriteLine("|")
-                        Console.WriteLine("")
-
-                        LoadUsers()
-
-                        Select Case Arguements(1).ToUpper
-                            Case "/TAX"
-                                Tax(True)
-
-                            Case "/INCOME"
-                                Payday(True)
-
-                        End Select
-                    Case "/NOCORPORATE"
-                        Console.WriteLine("Please wait..")
-                        Console.WriteLine("")
-                        Console.WriteLine("╔═══════════════════════════════════════════════╗")
-                        Console.WriteLine("║                                               ║")
-                        Console.WriteLine("╚═══════════════════════════════════════════════╝")
-                        Console.WriteLine("")
-                        Console.WriteLine("                  Loading Users                  ")
-                        Console.WriteLine("")
-                        Console.WriteLine("             !!NOT TAXING CORPORATE!!            ")
-                        Console.SetCursorPosition(24, 21)
-                        Console.WriteLine("|")
-                        Console.WriteLine("")
-
-                        LoadUsers(True)
-
-                        Select Case Arguements(1).ToUpper
-                            Case "/TAX"
-                                Tax(True)
-
-                            Case "/INCOME"
-                                Payday(True)
-
-                        End Select
-
-                    Case "/OLDNOCORPORATE"
-                        Console.WriteLine("Please wait..")
-                        Console.WriteLine("")
-                        Console.WriteLine("╔═══════════════════════════════════════════════╗")
-                        Console.WriteLine("║                                               ║")
-                        Console.WriteLine("╚═══════════════════════════════════════════════╝")
-                        Console.WriteLine("")
-                        Console.WriteLine("                  Loading Users                  ")
-                        Console.WriteLine("")
-                        Console.WriteLine("             !!NOT TAXING CORPORATE!!            ")
-                        Console.SetCursorPosition(24, 21)
-                        Console.WriteLine("|")
-                        Console.WriteLine("")
-
-                        LoadUsers(True)
-                        Tax(True, False)
+                If Not Arguements(2).ToUpper = "/FORCE" Then
+                    HelpScreen()
+                    Return
+                End If
+                DrawLoadBar("FORCE ENABLED")
+                Force = True
+        End Select
 
 
-                End Select
+        'Load the User Arrays
+        Dim NormalUsers() As User = LoadUsers("UserList.isf", 0)
+        Dim CorporateUsers() As User = LoadUsers("Corporate.isf", 1)
+
+        'If they're empty they already triggered the errorscreen and we just have to exit NOW
+        If IsNothing(NormalUsers) Or IsNothing(CorporateUsers) Then Exit Sub
+
+        Select Case Arguements(1).ToUpper
+            Case "/TAX"
+                If DateTime.Now.Day = 15 Or Force = True Then
+                    SetPos(0, 14)
+                    CenterText("Taxing normal users...")
+                    Tax(NormalUsers)
+
+                    SetPos(0, 14)
+                    CenterText("Taxing corporate users...")
+                    Tax(CorporateUsers)
+
+                    DoneScreen(1)
+                Else
+                    ErrorScreen(2)
+                End If
+
+            Case "/INCOME"
+                If DateTime.Now.Day = 1 Or Force = True Then
+                    SetPos(0, 14)
+                    CenterText("Paying Normal users...")
+                    Payday(NormalUsers)
+
+                    SetPos(0, 14)
+                    CenterText("Paying Corporate users...")
+                    Payday(CorporateUsers)
+
+                    DoneScreen(0)
+                Else
+                    ErrorScreen(2)
+                End If
 
         End Select
 
@@ -207,7 +257,7 @@ Module Module1
     Sub Spinner()
         Try
             Static Spinner As Integer
-            Spinner = Spinner + 1
+            Spinner += 1
             Console.SetCursorPosition(24, 21)
 
             Select Case Spinner
@@ -230,293 +280,140 @@ Module Module1
 
     End Sub
 
-    Sub LoadUsers(Optional nocorporate As Boolean = False)
+    Sub DrawLoadBar(Optional ByVal Text As String = "")
+        Console.WriteLine("Please wait..")
+        Console.WriteLine("")
+        Console.WriteLine("╔═══════════════════════════════════════════════╗")
+        Console.WriteLine("║                                               ║")
+        Console.WriteLine("╚═══════════════════════════════════════════════╝")
+        Console.WriteLine("")
+        Console.WriteLine("                  Loading Users                  ")
+        Console.WriteLine("")
+        CenterText(Text)
+        Console.SetCursorPosition(24, 21)
+        Console.WriteLine("|")
+        Console.WriteLine("")
 
+    End Sub
+
+    Sub HelpScreen()
+        Console.WriteLine("IMEX {/TAX or /INCOME} {/IGNORE}")
+        Console.WriteLine("")
+        Console.WriteLine("/TAX   : Tax all users in the UserList.ISF File")
+        Console.WriteLine("/INCOME: Give income to all users in the registry")
+        Console.WriteLine("")
+        Console.WriteLine("/IGNORE: Ignore the date restrictions on actions")
+        Console.WriteLine("")
+        Console.WriteLine("═════════════════════════════════════════════════")
+        Console.WriteLine("(C)2020 Igtampe, No Rights Reserved.")
+        Pause()
+
+    End Sub
+
+    Function LoadUsers(ISFDir As String, Category As Integer) As User()
+
+        'OPEN THE ISF
         Try
-            FileSystem.FileOpen(1, String.Concat("UserList.isf"), OpenMode.Input, OpenAccess.[Default], OpenShare.[Default], -1)
-        Catch
+            FileOpen(1, ISFDir, OpenMode.Input)
+        Catch ex As Exception
+            ToLog("AN ERROR HAS OCCURED: " & vbNewLine & vbNewLine & ex.StackTrace & vbNewLine)
             ErrorScreen(0)
-            Exit Sub
+            Return Nothing
         End Try
 
         Dim Counter As Integer = 1
         Dim TempStringHolder As String
+        Dim Users(0) As User
 
+        'READ THE FILE
         While Not EOF(1)
             TempStringHolder = LineInput(1)
             If (TempStringHolder.StartsWith("USER")) Then
-                ReDim Preserve User(Counter - 1)
-                'Grab the USER ID
-                User(Counter - 1).ID = TempStringHolder.Replace("USER" & Counter & ":", "")
+                ReDim Preserve Users(Counter - 1)
 
-                'GRAB THE INCOME
-                Try
-                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\INCOME.dll", OpenMode.Input)
-                    User(Counter - 1).Income = LineInput(2)
-                    FileClose(2)
-                Catch
-                    User(Counter - 1).Income = 0
-                End Try
-
-                Try
-                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\EI.dll", OpenMode.Input)
-                    User(Counter - 1).EI = LineInput(2)
-                    FileClose(2)
-                    File.Delete("..\USERS\" & User(Counter - 1).ID & "\EI.dll")
-                Catch
-                    User(Counter - 1).EI = 0
-                End Try
-
-                User(Counter - 1).Category = 0
+                'ADD THE USER
+                Users(Counter - 1) = New User(TempStringHolder.Replace("USER" & Counter & ":", ""), Category)
 
                 'LOG IT
-                ToLog("Loaded user " & Counter & " which is " & User(Counter - 1).ID & " and has an income of " & User(Counter - 1).Income.ToString("N0") & "p")
+                ToLog("Loaded user " & Counter & " which is " & Users(Counter - 1).ID & " and has an income of " & (Users(Counter - 1).TaxInfo.FederalIncome - Users(Counter - 1).EI).ToString("N0") & "p")
 
                 'S P I N
                 Spinner()
-                Counter = Counter + 1
+                Counter += 1
 
             End If
         End While
         FileClose(1)
 
-        If nocorporate = True Then Exit Sub
+        'AND RETURN THE USERS
+        Return Users
 
+        'THE NEW EMERGENCY LOAD USERS FUNCTION FROM LEGO CITY
+    End Function
 
-        Try
-            FileOpen(1, String.Concat("Corporate.isf"), OpenMode.Input, OpenAccess.[Default], OpenShare.[Default], -1)
-        Catch
-            Exit Sub
-        End Try
-        Dim CorporateCounter = 1
-        While Not EOF(1)
-            TempStringHolder = LineInput(1)
-            If (TempStringHolder.StartsWith("USER")) Then
-                ReDim Preserve User(Counter - 1)
-                'Grab the USER ID
-                User(Counter - 1).ID = TempStringHolder.Replace("USER" & CorporateCounter & ":", "")
+    Sub Tax(Users As User())
+        'there's 47 characters in the progressbar
+        Dim PBS As Integer
+        Dim T As Integer
 
-                'GRAB THE INCOME
-                Try
-                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\INCOME.dll", OpenMode.Input)
-                    User(Counter - 1).Income = LineInput(2)
-                    FileClose(2)
-                Catch
-                    User(Counter - 1).Income = 0
-                End Try
+        PBS = (47 / Users.Count)
 
-                Try
-                    FileOpen(2, "..\USERS\" & User(Counter - 1).ID & "\EI.dll", OpenMode.Input)
-                    User(Counter - 1).EI = LineInput(2)
-                    FileClose(2)
-                    File.Delete("..\USERS\" & User(Counter - 1).ID & "\EI.dll")
-                Catch
-                    User(Counter - 1).EI = 0
-                End Try
+        For Each Tipillo As User In Users
 
-                User(Counter - 1).Category = 1
+            'Tax
+            Try
+                Tipillo.Tax()
+                ToLog("Applied a tax of (" & Tipillo.TaxInfo.TotalTax & ") to " & Tipillo.ID & "'s Income (" & Tipillo.Income & ")")
+            Catch EX As Exception
+                ToLog("Failed to apply a tax to " & Tipillo.ID & "'s Income." & vbNewLine & EX.StackTrace)
+            End Try
 
-                'LOG IT
-                ToLog("Loaded Corporate user " & Counter & " which is " & User(Counter - 1).ID & " and has an income of " & User(Counter - 1).Income.ToString("N0") & "p")
-
-                'S P I N
-                Spinner()
-                Counter = Counter + 1
-                CorporateCounter = CorporateCounter + 1
-
-
-            End If
-        End While
-        FileClose(1)
-
-    End Sub
-
-    Sub Tax(FORCE As Boolean, Optional UseNUTAC As Boolean = True)
-        Console.SetCursorPosition(0, 14)
-        Console.WriteLine("Taxing all users...")
-        If DateTime.Now.Day = 15 Then
-taxanyway:
-
-            'there's 47 characters in the progressbar
-
-            Dim T As Integer
-            Dim Tax As Long
-            Dim taxb As Single
-            Dim topbank As String
-            Dim topbankB As Long
-            Dim NtopbankB As Long
-            Dim PBS As Double
-            Dim PBST As Integer
-
-            PBS = (47 / User.Count)
-
-
-            For T = 0 To User.Count - 1
-
-                Select Case User(T).Category
-                    Case 0
-                        'Personal User
-
-                        Select Case User(T).Income + User(T).EI
-                            Case > 5000000
-                                taxb = 0.05
-                            Case Else
-                                taxb = 0
-                                Exit Select
-                        End Select
-                        Tax = (User(T).Income + User(T).EI) * taxb
-                    Case 1
-
-
-                        Select Case User(T).Income + User(T).EI
-
-                            Case > 500000000
-                                taxb = 0.02
-                                Exit Select
-                                Case Else
-                                    taxb = 0
-                                    Exit Select
-                            End Select
-                            Tax = (User(T).Income + User(T).EI) * taxb
-
-                End Select
-
-
-                topbank = User(T).TaxBank
-                If topbank = "NOBANK" Then GoTo NoBankNoTax
-
-                topbankB = 0
-
-                FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\BALANCE.DLL", OpenMode.Input)
-                topbankB = LineInput(4)
-                FileClose(4)
-
-                NtopbankB = topbankB - Tax
-
-                FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\BALANCE.DLL", OpenMode.Output)
-                WriteLine(4, NtopbankB)
-                FileClose(4)
-
-                FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\log.log", OpenMode.Append)
-                PrintLine(4, "[" & DateTime.Now.ToString & "] IMEX applied a tax of " & Tax.ToString("N0") & "p to your account.")
-                PrintLine(4, "[" & DateTime.Now.ToString & "] Your total income (monthly and extra) last month was " & (User(T).Income + User(T).EI).ToString("N0") & "p")
-                FileClose(4)
-
-NoBankNoTax:
-                ToLog("Applied a tax of (" & Tax & ") to " & User(T).ID & "'s Income (" & User(T).Income & ") and completed operation " & topbankB & "-(" & User(T).Income & "*" & taxb & ")=" & NtopbankB)
-
-                Console.SetCursorPosition(1, 17)
-                Console.ForegroundColor = ConsoleColor.Green
-                Console.BackgroundColor = ConsoleColor.Green
-
-
-                For PBST = 1 To CInt(PBS * T)
-                    Console.Write("_")
-                Next
-
-                Console.ForegroundColor = ConsoleColor.DarkCyan
-                Console.BackgroundColor = ConsoleColor.Black
-                Console.SetCursorPosition(0, 20)
-
-                Console.WriteLine(("Taxing income to user " & User(T).ID) & "      ")
-                Spinner()
-                Threading.Thread.Sleep(50)
-
-
+            'Update Progressbar
+            T += 1
+            For PBST = 1 To CInt(PBS * T)
+                Block(ConsoleColor.Green, PBST, 17)
             Next
 
-            DoneScreen(1)
+            SetPos(0, 20)
+            CenterText("Taxed user " & Tipillo.ID)
+            Spinner()
+            Threading.Thread.Sleep(50)
 
-        Else
-
-            If FORCE = True Then GoTo taxanyway
-            ErrorScreen(2)
-            Exit Sub
-
-        End If
-
+        Next
 
 
     End Sub
 
 
 
-    Sub Payday(FORCE As Boolean)
-        Console.SetCursorPosition(0, 14)
-        Console.WriteLine("Paying all users...")
+    Sub Payday(Users As User())
+        'there's 47 characters in the progressbar
 
-        If DateTime.Now.Day = 1 Then
-payanyway:
+        Dim T As Integer
+        Dim PBS As Double
 
-            'there's 47 characters in the progressbar
+        PBS = (47 / Users.Count)
 
-            Dim T As Integer
-            Dim topbank As String
-            Dim topbankB As Long
-            Dim NtopbankB As Long
+        For Each tipillo As User In Users
 
-            Dim PBS As Double
-            Dim PBST As Integer
+            Try
+                tipillo.Pay()
+                ToLog("Payed out " & tipillo.ID & "'s Income (" & tipillo.Income & ")")
+            Catch ex As Exception
+                ToLog("Failed to pay " & tipillo.ID & "'s Income." & vbNewLine & ex.StackTrace)
+            End Try
 
-            PBS = (47 / User.Count)
-
-            For T = 0 To User.Count - 1
-
-                topbank = User(T).TopBank
-                If topbank = "NOBANK" Then GoTo NoBankNoTax
-
-                topbankB = 0
-
-                FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\BALANCE.DLL", OpenMode.Input)
-                topbankB = LineInput(4)
-                FileClose(4)
-
-                NtopbankB = topbankB + User(T).Income
-
-                FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\BALANCE.DLL", OpenMode.Output)
-                WriteLine(4, NtopbankB)
-                FileClose(4)
-
-                FileOpen(4, "..\USERS\" & User(T).ID & "\" & topbank & "\log.log", OpenMode.Append)
-                PrintLine(4, "[" & DateTime.Now.ToString & "] IMEX has applied your monthly income of " & User(T).Income.ToString("N0") & "p")
-                FileClose(4)
-
-
-NoBankNoTax:
-                ToLog("Payed out " & User(T).ID & "'s Income (" & User(T).Income & ") and completed operation " & topbankB & "+" & User(T).Income & "=" & NtopbankB)
-
-                Console.SetCursorPosition(1, 17)
-                Console.ForegroundColor = ConsoleColor.Green
-                Console.BackgroundColor = ConsoleColor.Green
-
-
-                For PBST = 1 To CInt(PBS * T)
-                    Console.Write("_")
-                Next
-
-                Console.ForegroundColor = ConsoleColor.DarkCyan
-                Console.BackgroundColor = ConsoleColor.Black
-                Console.SetCursorPosition(0, 20)
-
-                Console.WriteLine(("Applying income to user " & User(T).ID & "      "))
-                Spinner()
-                Threading.Thread.Sleep(50)
-
+            T += 1
+            For PBST = 1 To CInt(PBS * T)
+                Block(ConsoleColor.Green, PBST, 17)
             Next
 
-            DoneScreen(0)
+            SetPos(0, 20)
+            Console.WriteLine(("Paid user " & Users(T).ID & "      "))
+            Spinner()
+            Threading.Thread.Sleep(50)
 
-
-        Else
-
-            If FORCE = True Then GoTo PayAnyway
-
-            ErrorScreen(2)
-            Exit Sub
-
-        End If
-
-        'there's 47 
+        Next
 
 
     End Sub
