@@ -19,8 +19,8 @@ Public Class BasicRender
     Public Const WindowForegroundColor As ConsoleColor = ConsoleColor.DarkBlue
     Public Const WindowBackgroundColor As ConsoleColor = ConsoleColor.Gray
     Public Const WindowClearColor As ConsoleColor = ConsoleColor.Black
-    Public Const WindowHeight As Integer = 24
-    Public Const WindowWidth As Integer = 80
+    Public Const WindowHeight As Integer = 25
+    Public Const WindowWidth As Integer = 50
 
 
     ''' <summary>

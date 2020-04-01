@@ -1,6 +1,7 @@
 ﻿Imports System.IO
 Imports IMEX.TaxCalc
 Imports IMEX.BasicRender
+Imports IMEX.ImexGraphics
 
 Module Module1
 
@@ -13,13 +14,6 @@ Module Module1
 
 
         Public Function TopBank() As String
-            If HasBank("UMSNB") Then Return "UMSNB"
-            If HasBank("GBANK") Then Return "GBANK"
-            If HasBank("RIVER") Then Return "RIVER"
-            Throw NoBankException
-        End Function
-
-        Private Function TopBank(ID As String) As String
             If HasBank("UMSNB") Then Return "UMSNB"
             If HasBank("GBANK") Then Return "GBANK"
             If HasBank("RIVER") Then Return "RIVER"
@@ -81,6 +75,7 @@ Module Module1
                 NOstenIncome = TempBreakdown(4)
                 SOstenIncome = TempBreakdown(5)
             Catch
+                ToLog("WARN: Unable to get " & ID & "'s income breakdown.")
                 NewpondIncome = 0
                 UrbiaIncome = 0
                 ParadisusIncome = 0
@@ -106,7 +101,6 @@ Module Module1
         End Sub
 
         Public Sub Pay()
-
             'PAY
             NTA(Income)
 
@@ -114,11 +108,9 @@ Module Module1
             FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\log.log", OpenMode.Append)
             PrintLine(4, "[" & DateTime.Now.ToString & "] IMEX has applied your monthly income of " & Income.ToString("N0") & "p")
             FileClose(4)
-
         End Sub
 
         Public Sub Tax()
-
             'Take the money out
             NTA(-1 * TaxInfo.TotalTax)
 
@@ -163,10 +155,6 @@ Module Module1
                 End If
 
             End If
-
-
-
-
         End Sub
     End Structure
 
@@ -181,44 +169,22 @@ Module Module1
 
     Sub Main()
 
-        Dim Arguements As String()
-        Arguements = Environment.GetCommandLineArgs
-
         Echo("Please Wait, Loading IMEX", True)
 
-        Console.Clear()
+        Dim Arguements As String()
+        Arguements = Environment.GetCommandLineArgs
+        Dim Force As Boolean = False
 
+        Console.Clear()
 
         Console.Title = "IncomeMan Express"
         Console.SetWindowSize(50, 25)
         Console.SetBufferSize(50, 25)
         Color(ConsoleColor.Black, ConsoleColor.DarkCyan)
-
-
-        Echo(".")
-        Echo("      /$$$$$$ /$$      /$$ /$$$$$$$$ /$$   /$$", True)
-        Echo("     |_  $$_/| $$$    /$$$| $$_____/| $$  / $$", True)
-        Echo("       | $$  | $$$$  /$$$$| $$      |  $$/ $$/", True)
-        Echo("       | $$  | $$ $$/$$ $$| $$$$$    \  $$$$/ ", True)
-        Echo("       | $$  | $$  $$$| $$| $$__/     >$$  $$ ", True)
-        Echo("       | $$  | $$\  $ | $$| $$       /$$/\  $$", True)
-        Echo("      /$$$$$$| $$ \/  | $$| $$$$$$$$| $$  \ $$", True)
-        Echo("     |______/|__/     |__/|________/|__/  |__/", True)
-        Echo(".")
-        Echo("═════════════════════════════════════════════════", True)
-        Echo("                 IncomeMan EXPRESS", True)
-        Echo("═════════════════════════════════════════════════", True)
-        Echo(".")
-
-        Dim Force As Boolean
+        drawHeader()
 
         Select Case Arguements.Count
 
-            '╔═╦═╗
-            '║ ║ ║
-            '╠═╬═╣
-            '║ ║ ║
-            '╚═╩═╝
             Case 1
                 HelpScreen()
                 Return
@@ -247,10 +213,12 @@ Module Module1
 
         Select Case Arguements(1).ToUpper
             Case "/TAX"
-                If DateTime.Now.Day = 15 Or Force = True Then
+                If Date.Now.Day = 15 Or Force = True Then
                     SetPos(0, 14)
                     CenterText("Taxing normal users...")
                     Tax(NormalUsers)
+
+                    ClearProgressBar()
 
                     SetPos(0, 14)
                     CenterText("Taxing corporate users...")
@@ -262,10 +230,12 @@ Module Module1
                 End If
 
             Case "/INCOME"
-                If DateTime.Now.Day = 1 Or Force = True Then
+                If Date.Now.Day = 1 Or Force = True Then
                     SetPos(0, 14)
                     CenterText("Paying Normal users...")
                     Payday(NormalUsers)
+
+                    ClearProgressBar()
 
                     SetPos(0, 14)
                     CenterText("Paying Corporate users...")
@@ -306,36 +276,6 @@ Module Module1
 
     End Sub
 
-    Sub DrawLoadBar(Optional ByVal Text As String = "")
-        Console.WriteLine("Please wait..")
-        Console.WriteLine("")
-        Console.WriteLine("╔═══════════════════════════════════════════════╗")
-        Console.WriteLine("║                                               ║")
-        Console.WriteLine("╚═══════════════════════════════════════════════╝")
-        Console.WriteLine("")
-        Console.WriteLine("                  Loading Users                  ")
-        Console.WriteLine("")
-        CenterText(Text)
-        Console.SetCursorPosition(24, 21)
-        Console.WriteLine("|")
-        Console.WriteLine("")
-
-    End Sub
-
-    Sub HelpScreen()
-        Console.WriteLine("IMEX {/TAX or /INCOME} {/IGNORE}")
-        Console.WriteLine("")
-        Console.WriteLine("/TAX   : Tax all users in the UserList.ISF File")
-        Console.WriteLine("/INCOME: Give income to all users in the registry")
-        Console.WriteLine("")
-        Console.WriteLine("/IGNORE: Ignore the date restrictions on actions")
-        Console.WriteLine("")
-        Console.WriteLine("═════════════════════════════════════════════════")
-        Console.WriteLine("(C)2020 Igtampe, No Rights Reserved.")
-        Pause()
-
-    End Sub
-
     Function LoadUsers(ISFDir As String, Category As Integer) As User()
 
         'OPEN THE ISF
@@ -361,7 +301,7 @@ Module Module1
                 Users(Counter - 1) = New User(TempStringHolder.Replace("USER" & Counter & ":", ""), Category)
 
                 'LOG IT
-                ToLog("Loaded user " & Counter & " which is " & Users(Counter - 1).ID & " and has an income of " & (Users(Counter - 1).TaxInfo.FederalIncome - Users(Counter - 1).EI).ToString("N0") & "p")
+                ToLog("INFO: Loaded user " & Counter & " which is " & Users(Counter - 1).ID & " and has an income of " & (Users(Counter - 1).TaxInfo.FederalIncome - Users(Counter - 1).EI).ToString("N0") & "p")
 
                 'S P I N
                 Spinner()
@@ -389,14 +329,18 @@ Module Module1
             'Tax
             Try
                 Tipillo.Tax()
-                ToLog("Applied a tax of (" & Tipillo.TaxInfo.TotalTax & ") to " & Tipillo.ID & "'s Income (" & Tipillo.Income & ")")
+                ToLog("INFO: Applied a tax of (" & Tipillo.TaxInfo.TotalTax & ") to " & Tipillo.ID & "'s Income (" & Tipillo.Income & ")")
             Catch EX As Exception
-                ToLog("Failed to apply a tax to " & Tipillo.ID & "'s Income." & vbNewLine & EX.StackTrace)
+                If EX.Equals(NoBankException) Then
+                    ToLog("ERROR: Failed to apply a tax to " & Tipillo.ID & "'s Income since he has no bank!")
+                Else
+                    ToLog("ERROR: Failed to apply a tax to " & Tipillo.ID & "'s Income. " & EX.Message & vbNewLine & EX.StackTrace)
+                End If
             End Try
 
             'Update Progressbar
             T += 1
-            For PBST = 1 To CInt(PBS * T)
+            For PBST = 1 To PBS * T
                 Block(ConsoleColor.Green, PBST, 17)
             Next
 
@@ -407,10 +351,7 @@ Module Module1
 
         Next
 
-
     End Sub
-
-
 
     Sub Payday(Users As User())
         'there's 47 characters in the progressbar
@@ -424,109 +365,41 @@ Module Module1
 
             Try
                 tipillo.Pay()
-                ToLog("Payed out " & tipillo.ID & "'s Income (" & tipillo.Income & ")")
+                ToLog("INFO: Payed out " & tipillo.ID & "'s Income (" & tipillo.Income & ")")
             Catch ex As Exception
-                ToLog("Failed to pay " & tipillo.ID & "'s Income." & vbNewLine & ex.StackTrace)
+                If ex.Equals(NoBankException) Then
+                    ToLog("ERROR: Failed to pay " & tipillo.ID & "'s Income because he has no bank!")
+                Else
+                    ToLog("ERROR: Failed to pay " & tipillo.ID & "'s Income." & vbNewLine & ex.StackTrace)
+                End If
+
             End Try
 
             T += 1
-            For PBST = 1 To CInt(PBS * T)
+            For PBST = 1 To PBS * T
                 Block(ConsoleColor.Green, PBST, 17)
             Next
 
             SetPos(0, 20)
-            Console.WriteLine(("Paid user " & Users(T).ID & "      "))
+            CenterText("Paid user " & tipillo.ID)
+
             Spinner()
             Threading.Thread.Sleep(50)
 
         Next
 
-
     End Sub
 
-    Sub DoneScreen(L1 As Integer)
-        Console.SetCursorPosition(0, 14)
-        Console.ForegroundColor = ConsoleColor.Green
-        Console.BackgroundColor = ConsoleColor.Black
-        Console.WriteLine("╔═══════════════════════════════════════════════╗")
-        Console.WriteLine("║        Operation Completed Successfully       ║")
-        Console.WriteLine("╠═══════════════════════════════════════════════╣")
-
-        Select Case L1
-            Case 0
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║          Everyone was payed properly          ║")
-                Console.WriteLine("║     The log was generated so check it JIC     ║")
-                Console.WriteLine("║                                               ║")
-            Case 1
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║          Everyone was taxed properly          ║")
-                Console.WriteLine("║     The log was generated so check it JIC     ║")
-                Console.WriteLine("║                                               ║")
-            Case Else
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║        An unknown error has occurred.         ║")
-                Console.WriteLine("║           Check the Log pls thanks            ║")
-                Console.WriteLine("║                                               ║")
-
-
-        End Select
-        Console.WriteLine("╚═══════════════════════════════════════════════╝")
-        Console.ReadKey(True)
-        Exit Sub
-
-    End Sub
-
-
-    Sub ErrorScreen(L1 As Integer)
-        Console.SetCursorPosition(0, 14)
-        Console.ForegroundColor = ConsoleColor.Red
-        Console.WriteLine("╔═══════════════════════════════════════════════╗")
-        Console.WriteLine("║                   E R R O R                   ║")
-        Console.WriteLine("╠═══════════════════════════════════════════════╣")
-
-        Select Case L1
-            Case 99
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║                                               ║")
-            Case 0
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║         Couldn't find the USERLIST ISF        ║")
-                Console.WriteLine("║  Are you running IMEX in the right directory  ║")
-                Console.WriteLine("║                                               ║")
-            Case 1
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║           The Spinner failed to load          ║")
-                Console.WriteLine("║         I don't know how that happened        ║")
-                Console.WriteLine("║                                               ║")
-            Case 2
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║       It's not the right date to execute      ║")
-                Console.WriteLine("║    use /IGNORE if you want to do it anyway    ║")
-                Console.WriteLine("║                                               ║")
-
-            Case Else
-                Console.WriteLine("║                                               ║")
-                Console.WriteLine("║        An unknown error has occurred.         ║")
-                Console.WriteLine("║           Check the Log pls thanks            ║")
-                Console.WriteLine("║                                               ║")
-
-
-        End Select
-        Console.WriteLine("╚═══════════════════════════════════════════════╝")
-        Console.ReadKey(True)
-        Exit Sub
+    Sub LogHeader()
+        FileOpen(50, "IMEXLOG.log", OpenMode.Append)
+        PrintLine(50, ":::::IMEX WAS STARTED ON " & DateTime.Now.ToString & ":::::")
+        FileClose(50)
     End Sub
 
     Sub ToLog(message As String)
-
         FileOpen(50, "IMEXLOG.log", OpenMode.Append)
-        PrintLine(50, "[" & DateTime.Now.ToString & "] " & message)
+        PrintLine(50, message)
         FileClose(50)
-
     End Sub
-
 
 End Module
