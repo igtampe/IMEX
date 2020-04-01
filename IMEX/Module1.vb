@@ -203,6 +203,7 @@ Module Module1
                 Force = True
         End Select
 
+        LogHeader()
 
         'Load the User Arrays
         Dim NormalUsers() As User = LoadUsers("UserList.isf", 0)
