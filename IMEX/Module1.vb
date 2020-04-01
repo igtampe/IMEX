@@ -108,7 +108,7 @@ Module Module1
         Public Sub Pay()
 
             'PAY
-            NTA(ID, Income)
+            NTA(Income)
 
             'Send to Logs
             FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\log.log", OpenMode.Append)
@@ -120,16 +120,7 @@ Module Module1
         Public Sub Tax()
 
             'Take the money out
-            NTA(ID, -1 * TaxInfo.TotalTax)
-
-            'Send Taxes to appropriate accounts
-            NTA("33118", TaxInfo.Federal.MoneyOwed)
-            NTA("86700", TaxInfo.Newpond.MoneyOwed)
-            NTA("86701", TaxInfo.Paradisus.MoneyOwed)
-            NTA("86702", TaxInfo.Urbia.MoneyOwed)
-            NTA("86703", TaxInfo.Laertes.MoneyOwed)
-            NTA("86704", TaxInfo.NorthOsten.MoneyOwed)
-            NTA("86705", TaxInfo.SouthOsten.MoneyOwed)
+            NTA(-1 * TaxInfo.TotalTax)
 
             'Send to Logs
             FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\log.log", OpenMode.Append)
@@ -140,18 +131,53 @@ Module Module1
             'Clear the EI file
             ClearEI()
 
+            'Send Taxes to appropriate accounts
+            Try
+                UMSGov.NTA(TaxInfo.Federal.MoneyOwed, True, ID)
+                Newpond.NTA(TaxInfo.Newpond.MoneyOwed, True, ID)
+                Paradisus.NTA(TaxInfo.Paradisus.MoneyOwed, True, ID)
+                Urbia.NTA(TaxInfo.Urbia.MoneyOwed, True, ID)
+                Laertes.NTA(TaxInfo.Laertes.MoneyOwed, True, ID)
+                NorthOsten.NTA(TaxInfo.NorthOsten.MoneyOwed, True, ID)
+                SouthOsten.NTA(TaxInfo.SouthOsten.MoneyOwed, True, ID)
+            Catch ex As Exception
+                ToLog("Could not send money to UMSGov")
+            End Try
+
         End Sub
 
-        Private Sub NTA(ntaID As String, Amount As Long)
-            Dim Balance As Long = GetBankBalance(TopBank()) + Amount
-            FileOpen(4, "..\USERS\" & ntaID & "\" & TopBank() & "\BALANCE.DLL", OpenMode.Output)
-            WriteLine(4, Balance)
-            FileClose(4)
-        End Sub
+        Public Sub NTA(Amount As Long, Optional Log As Boolean = False, Optional From As String = "")
+            Dim top As String = TopBank()
+            If top = "NOBANK" Then
+                'Do nothing
+            Else
+                Dim Balance As Long = GetBankBalance(top) + Amount
+                FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\BALANCE.DLL", OpenMode.Output)
+                WriteLine(4, Balance)
+                FileClose(4)
 
+                If Log Then
+                    FileOpen(4, "..\USERS\" & ID & "\" & TopBank() & "\log.log", OpenMode.Append)
+                    PrintLine(4, "[" & DateTime.Now.ToString & "] IMEX Moved " & Amount.ToString("N0") & "p to your account from " & From)
+                    FileClose(4)
+                End If
+
+            End If
+
+
+
+
+        End Sub
     End Structure
 
     Public NoBankException As Exception = New Exception("The User has no bank")
+    Public UMSGov As User = New User("33118", 2)
+    Public Newpond As User = New User("86700", 2)
+    Public Paradisus As User = New User("86701", 2)
+    Public Urbia As User = New User("86702", 2)
+    Public Laertes As User = New User("86703", 2)
+    Public NorthOsten As User = New User("86704", 2)
+    Public SouthOsten As User = New User("86705", 2)
 
     Sub Main()
 
@@ -197,7 +223,7 @@ Module Module1
                 HelpScreen()
                 Return
             Case 2
-                If Not Arguements(1).ToUpper = "/TAX" Or Arguements(1).ToUpper = "/INCOME" Then
+                If Not Arguements(1).ToUpper = "/TAX" And Not Arguements(1).ToUpper = "/INCOME" Then
                     HelpScreen()
                     Return
                 End If
